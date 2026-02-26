@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LIFT — Workout Logger</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #171717;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #666;
+    --success: #4ade80;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding-bottom: 100px;
+  }
+
+  .auth-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 40px 28px;
+  }
+
+  .auth-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    letter-spacing: 8px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .auth-tagline { font-size: 14px; color: var(--muted); margin-bottom: 48px; }
+
+  .auth-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .auth-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .auth-input:focus { outline: none; border-color: var(--accent); }
+
+  .auth-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #0d0d0d;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.15s;
+  }
+
+  .auth-btn:active { transform: scale(0.97); }
+  .auth-btn:disabled { opacity: 0.4; }
+
+  .auth-switch { text-align: center; margin-top: 20px; font-size: 14px; color: var(--muted); }
+  .auth-switch span { color: var(--accent); cursor: pointer; font-weight: 600; }
+
+  .auth-error {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .app { display: none; }
+
+  .header {
+    padding: 28px 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 4px; color: var(--accent); line-height: 1; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+  .date-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .user-badge { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .logout-btn { font-size: 11px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+
+  .tabs { display: flex; padding: 16px 20px 0; gap: 8px; border-bottom: 1px solid var(--border); }
+
+  .tab {
+    flex: 1; padding: 10px; text-align: center;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.2s; letter-spacing: 0.5px;
+  }
+
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .page { display: none; padding: 20px; }
+  .page.active { display: block; }
+
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+  .section { margin-bottom: 24px; }
+
+  .bodypart-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .bodypart-btn {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: var(--radius); padding: 14px 8px;
+    text-align: center; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+
+  .bodypart-btn .icon { font-size: 22px; }
+  .bodypart-btn .label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
+  .bodypart-btn.selected { border-color: var(--accent); background: rgba(232,255,71,0.08); }
+  .bodypart-btn.selected .label { color: var(--accent); }
+
+  .exercise-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .exercise-item {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; cursor: pointer;
+    font-size: 15px; font-weight: 500; transition: all 0.15s;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .exercise-item .pr-tag { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface2); padding: 3px 8px; border-radius: 20px; }
+  .exercise-item.selected { border-color: var(--accent); background: rgba(232,255,71,0.06); color: var(--accent); }
+
+  .set-logger { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+  .current-exercise-label { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--text); margin-bottom: 4px; }
+  .set-counter { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 20px; }
+
+  .inputs-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+
+  .stepper { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .stepper-btn { width: 36px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: var(--muted); user-select: none; transition: all 0.1s; flex-shrink: 0; }
+  .stepper-btn:active { background: var(--border); color: var(--text); }
+  .stepper-val { flex: 1; text-align: center; font-size: 18px; font-weight: 600; color: var(--text); }
+
+  .weight-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; height: 46px; font-size: 18px; font-weight: 600; color: var(--text); font-family: 'DM Sans', sans-serif; text-align: center; }
+  .weight-input:focus { outline: none; border-color: var(--accent); }
+
+  .log-btn { width: 100%; background: var(--accent); color: #0d0d0d; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; letter-spacing: 0.5px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .log-btn:active { transform: scale(0.97); }
+  .log-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .sets-today { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+
+  .set-pill { display: flex; align-items: center; background: var(--surface2); border-radius: 10px; padding: 10px 14px; font-size: 13px; gap: 8px; }
+  .set-pill .set-num { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--muted); width: 20px; }
+  .set-pill .set-detail { color: var(--text); font-weight: 500; flex: 1; }
+  .set-pill .pr-flag { color: var(--accent); font-size: 14px; }
+
+  .pr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .pr-exercise { font-size: 15px; font-weight: 500; }
+  .pr-bodypart-tag { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .pr-weight { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--accent); line-height: 1; }
+  .pr-weight span { font-size: 14px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+
+  .history-day { margin-bottom: 24px; }
+  .history-day-header { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  .history-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; gap: 10px; }
+  .history-row .h-exercise { flex: 1; font-weight: 500; }
+  .history-row .h-set { color: var(--muted); font-size: 12px; width: 40px; }
+  .history-row .h-detail { color: var(--text); }
+  .history-row .h-pr { font-size: 14px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .empty .big { font-size: 40px; margin-bottom: 10px; }
+
+  .pr-flash { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--accent); color: #0d0d0d; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 50px; z-index: 100; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; }
+  .pr-flash.show { transform: translateX(-50%) translateY(0); }
+
+  .step-indicator { display: flex; gap: 6px; margin-bottom: 20px; }
+  .step-dot { height: 4px; border-radius: 2px; background: var(--border); flex: 1; transition: background 0.2s; }
+  .step-dot.done { background: var(--accent); }
+
+  .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; margin-bottom: 16px; font-weight: 500; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px; text-align: center; }
+  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="pr-flash" id="prFlash">🏆 NEW PR!</div>
+
+<div class="loading-screen" id="loadingScreen"><div class="spinner"></div></div>
+
+<!-- AUTH -->
+<div class="auth-screen" id="authScreen" style="display:none">
+  <div class="auth-logo">LIFT</div>
+  <div class="auth-tagline">Your personal workout tracker</div>
+  <div class="auth-error" id="authError"></div>
+
+  <div id="loginForm">
+    <div class="auth-label">Email</div>
+    <input class="auth-input" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email">
+    <div class="auth-label">Password</div>
+    <input class="auth-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    <button class="auth-btn" id="loginBtn" onclick="login()">Sign In</button>
+    <div class="auth-switch">No account? <span onclick="showSignup()">Create one</span></div>
+  </div>
+
+  <div id="signupForm" style="display:none">
+    <div class="auth-label">Email</div>
+    <input class="auth-input" type="email" id="signupEmail" placeholder="you@email.com" autocomplete="email">
+    <div class="auth-label">Password</div>
+    <input class="auth-input" type="password" id="signupPassword" placeholder="Min. 6 characters" autocomplete="new-password">
+    <button class="auth-btn" id="signupBtn" onclick="signup()">Create Account</button>
+    <div class="auth-switch">Already have one? <span onclick="showLogin()">Sign in</span></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="header">
+    <div class="logo">LIFT</div>
+    <div class="header-right">
+      <div class="date-badge" id="dateBadge"></div>
+      <div class="user-badge">
+        <span id="userEmail"></span> · <span class="logout-btn" onclick="logout()">Sign out</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('log')">LOG</div>
+    <div class="tab" onclick="switchTab('prs')">PRs</div>
+    <div class="tab" onclick="switchTab('history')">HISTORY</div>
+  </div>
+
+  <div class="page active" id="page-log">
+
+    <div id="step1">
+      <br>
+      <div class="step-indicator"><div class="step-dot done"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+      <div class="section">
+        <div class="section-label">Today's Focus</div>
+        <div class="bodypart-grid" id="bodypartGrid"></div>
+      </div>
+    </div>
+
+    <div id="step2" style="display:none">
+      <br>
+      <div class="step-indicator"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot"></div></div>
+      <div class="back-link" onclick="goStep(1)">← Back</div>
+      <div class="section">
+        <div class="section-label">Choose Exercise</div>
+        <div class="exercise-list" id="exerciseList"></div>
+      </div>
+    </div>
+
+    <div id="step3" style="display:none">
+      <br>
+      <div class="step-indicator"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot done"></div></div>
+      <div class="back-link" onclick="goStep(2)">← Change Exercise</div>
+      <div class="set-logger">
+        <div class="current-exercise-label" id="exerciseTitle"></div>
+        <div class="set-counter" id="setCounter"></div>
+        <div class="inputs-row">
+          <div class="input-group">
+            <label>Set</label>
+            <div class="stepper">
+              <div class="stepper-btn" onclick="change('set',-1)">−</div>
+              <div class="stepper-val" id="setVal">1</div>
+              <div class="stepper-btn" onclick="change('set',1)">+</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Reps</label>
+            <div class="stepper">
+              <div class="stepper-btn" onclick="change('reps',-1)">−</div>
+              <div class="stepper-val" id="repsVal">8</div>
+              <div class="stepper-btn" onclick="change('reps',1)">+</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>KG</label>
+            <input class="weight-input" type="number" inputmode="decimal" id="weightVal" placeholder="0">
+          </div>
+        </div>
+        <button class="log-btn" onclick="logSet()" id="logBtn">LOG SET ✓</button>
+      </div>
+      <div class="sets-today" id="setsToday"></div>
+      <br>
+      <button class="log-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);margin-top:4px" onclick="goStep(2)">
+        + New Exercise
+      </button>
+    </div>
+  </div>
+
+  <div class="page" id="page-prs">
+    <br>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="section-label">Personal Records</div>
+    <div id="prList"></div>
+  </div>
+
+  <div class="page" id="page-history">
+    <br>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://esmztaixcutbwcgqiumi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbXp0YWl4Y3V0YndjZ3FpdW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNzAxMjgsImV4cCI6MjA4NzY0NjEyOH0.a9ldUPv-QqmCFpSR5E1JxgCPdhjs9BDYwl-rTwiUuAA';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const EXERCISES = {
+  "Back":      ["Pulldown Machine","Seated Row","Deadlift","Pull Up","Barbell Row","Cable Row"],
+  "Chest":     ["Bench Press","Incline Press","Chest Fly","Push Up","Cable Fly","Dip"],
+  "Shoulders": ["Overhead Press","Lateral Raise","Face Pull","Arnold Press","Front Raise","Rear Delt Fly"],
+  "Arms":      ["Barbell Curl","Tricep Pushdown","Hammer Curl","Skull Crusher","Preacher Curl","Overhead Tricep"],
+  "Legs":      ["Squat","Leg Press","Romanian Deadlift","Leg Extension","Leg Curl","Calf Raise"],
+  "Core":      ["Plank","Cable Crunch","Hanging Leg Raise","Ab Wheel","Russian Twist","Decline Crunch"]
+};
+
+const BODYICONS = { Back:"⬆️", Chest:"🫁", Shoulders:"🏔️", Arms:"💪", Legs:"🦵", Core:"⭕" };
+
+let state = { bodyPart: null, exercise: null, setNum: 1, reps: 8 };
+let currentUser = null;
+let cachedData = [];
+
+// ── AUTH ──────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  document.getElementById('loadingScreen').style.display = 'none';
+  if (session) { currentUser = session.user; showApp(); }
+  else { document.getElementById('authScreen').style.display = 'flex'; }
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) { currentUser = session.user; showApp(); }
+  else if (event === 'SIGNED_OUT') {
+    currentUser = null; cachedData = [];
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+});
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginBtn').textContent = 'Signing in...';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = 'Sign In';
+  if (error) showAuthError(error.message);
+}
+
+async function signup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  document.getElementById('signupBtn').disabled = true;
+  document.getElementById('signupBtn').textContent = 'Creating...';
+  const { data, error } = await sb.auth.signUp({ email, password });
+  document.getElementById('signupBtn').disabled = false;
+  document.getElementById('signupBtn').textContent = 'Create Account';
+  if (error) { showAuthError(error.message); return; }
+  // If session is returned immediately, user is logged in (email confirm disabled)
+  if (data.session) {
+    currentUser = data.session.user;
+    showApp();
+  } else {
+    showAuthError('✅ Account created! Check your email to confirm.', true);
+  }
+}
+
+async function logout() { await sb.auth.signOut(); }
+
+function showAuthError(msg, success = false) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = success ? 'rgba(74,222,128,0.1)' : 'rgba(255,107,53,0.1)';
+  el.style.border = `1px solid ${success ? 'var(--success)' : 'var(--accent2)'}`;
+  el.style.color = success ? 'var(--success)' : 'var(--accent2)';
+}
+
+function showLogin() {
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('signupForm').style.display = 'none';
+  document.getElementById('authError').style.display = 'none';
+}
+
+function showSignup() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('signupForm').style.display = 'block';
+  document.getElementById('authError').style.display = 'none';
+}
+
+// ── APP ───────────────────────────────────────────────
+async function showApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('dateBadge').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  document.getElementById('userEmail').textContent = currentUser.email.split('@')[0];
+  buildBodyParts();
+  await fetchData();
+}
+
+async function fetchData() {
+  const { data, error } = await sb.from('sets').select('*').order('created_at', { ascending: true });
+  if (!error) cachedData = data || [];
+}
+
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+function getPRs() {
+  const prs = {};
+  cachedData.forEach(r => { if (!prs[r.exercise] || r.weight > prs[r.exercise]) prs[r.exercise] = r.weight; });
+  return prs;
+}
+
+// ── LOG ───────────────────────────────────────────────
+function buildBodyParts() {
+  const grid = document.getElementById('bodypartGrid');
+  grid.innerHTML = '';
+  Object.keys(EXERCISES).forEach(bp => {
+    const btn = document.createElement('div');
+    btn.className = 'bodypart-btn';
+    btn.innerHTML = `<div class="icon">${BODYICONS[bp]}</div><div class="label">${bp}</div>`;
+    btn.onclick = () => selectBodyPart(bp);
+    grid.appendChild(btn);
+  });
+}
+
+function selectBodyPart(bp) {
+  state.bodyPart = bp;
+  document.querySelectorAll('.bodypart-btn').forEach(b => b.classList.toggle('selected', b.querySelector('.label').textContent === bp));
+  setTimeout(() => goStep(2), 150);
+}
+
+function buildExercises() {
+  const list = document.getElementById('exerciseList');
+  list.innerHTML = '';
+  const prs = getPRs();
+  EXERCISES[state.bodyPart].forEach(ex => {
+    const item = document.createElement('div');
+    item.className = 'exercise-item';
+    const pr = prs[ex];
+    item.innerHTML = `<span>${ex}</span>${pr ? `<span class="pr-tag">PR ${pr}kg</span>` : ''}`;
+    item.onclick = () => selectExercise(ex);
+    list.appendChild(item);
+  });
+}
+
+function selectExercise(ex) {
+  state.exercise = ex;
+  document.querySelectorAll('.exercise-item').forEach(i => i.classList.toggle('selected', i.querySelector('span').textContent === ex));
+  const todaySets = cachedData.filter(r => r.date === todayStr() && r.exercise === ex);
+  state.setNum = todaySets.length + 1;
+  setTimeout(() => goStep(3), 150);
+}
+
+function goStep(n) {
+  document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+  document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+  document.getElementById('step3').style.display = n === 3 ? 'block' : 'none';
+  if (n === 2) buildExercises();
+  if (n === 3) renderStep3();
+}
+
+function renderStep3() {
+  document.getElementById('exerciseTitle').textContent = state.exercise;
+  document.getElementById('setVal').textContent = state.setNum;
+  document.getElementById('repsVal').textContent = state.reps;
+  document.getElementById('setCounter').textContent = `Set ${state.setNum} — ${state.bodyPart}`;
+
+  const sets = cachedData.filter(r => r.date === todayStr() && r.exercise === state.exercise);
+  const container = document.getElementById('setsToday');
+  container.innerHTML = '';
+  sets.forEach(s => {
+    const pill = document.createElement('div');
+    pill.className = 'set-pill';
+    pill.innerHTML = `<div class="set-num">${s.set_num}</div><div class="set-detail">${s.reps} reps × ${s.weight} kg</div>${s.is_pr ? '<div class="pr-flag">🏆</div>' : ''}`;
+    container.appendChild(pill);
+  });
+}
+
+function change(field, delta) {
+  if (field === 'set') { state.setNum = Math.max(1, Math.min(20, state.setNum + delta)); document.getElementById('setVal').textContent = state.setNum; }
+  else { state.reps = Math.max(1, Math.min(50, state.reps + delta)); document.getElementById('repsVal').textContent = state.reps; }
+}
+
+async function logSet() {
+  const weight = parseFloat(document.getElementById('weightVal').value);
+  if (!weight || weight <= 0) {
+    const inp = document.getElementById('weightVal');
+    inp.style.borderColor = 'var(--accent2)'; inp.focus();
+    setTimeout(() => inp.style.borderColor = '', 1000); return;
+  }
+
+  const btn = document.getElementById('logBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const prs = getPRs();
+  const isPR = !prs[state.exercise] || weight > prs[state.exercise];
+
+  const { data, error } = await sb.from('sets').insert({
+    user_id: currentUser.id,
+    date: todayStr(),
+    body_part: state.bodyPart,
+    exercise: state.exercise,
+    set_num: state.setNum,
+    reps: state.reps,
+    weight: weight,
+    is_pr: isPR
+  }).select().single();
+
+  btn.disabled = false; btn.textContent = 'LOG SET ✓';
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  cachedData.push(data);
+  if (isPR) showPRFlash(state.exercise, weight);
+
+  state.setNum++;
+  document.getElementById('setVal').textContent = state.setNum;
+  document.getElementById('setCounter').textContent = `Set ${state.setNum} — ${state.bodyPart}`;
+  document.getElementById('weightVal').value = '';
+  renderStep3();
+}
+
+function showPRFlash(exercise, weight) {
+  const el = document.getElementById('prFlash');
+  el.textContent = `🏆 NEW PR — ${exercise} at ${weight}kg!`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── PRs ───────────────────────────────────────────────
+function renderPRs() {
+  const prs = {}, prBodyPart = {};
+  cachedData.forEach(r => { if (!prs[r.exercise] || r.weight > prs[r.exercise]) { prs[r.exercise] = r.weight; prBodyPart[r.exercise] = r.body_part; } });
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-box"><div class="stat-val">${cachedData.length}</div><div class="stat-label">Sets Logged</div></div>
+    <div class="stat-box"><div class="stat-val">${new Set(cachedData.map(r=>r.date)).size}</div><div class="stat-label">Sessions</div></div>
+    <div class="stat-box"><div class="stat-val">${Object.keys(prs).length}</div><div class="stat-label">Exercises</div></div>
+  `;
+
+  const list = document.getElementById('prList');
+  if (!Object.keys(prs).length) { list.innerHTML = '<div class="empty"><div class="big">🏆</div>Log your first set to start tracking PRs!</div>'; return; }
+
+  list.innerHTML = '';
+  Object.keys(prs).sort((a,b)=>(prBodyPart[a]||'').localeCompare(prBodyPart[b]||'')).forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'pr-card';
+    card.innerHTML = `<div><div class="pr-exercise">${ex}</div><div class="pr-bodypart-tag">${prBodyPart[ex]||''}</div></div><div class="pr-weight">${prs[ex]}<span> kg</span></div>`;
+    list.appendChild(card);
+  });
+}
+
+// ── HISTORY ───────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!cachedData.length) { list.innerHTML = '<div class="empty"><div class="big">📋</div>No sessions logged yet.</div>'; return; }
+
+  const byDate = {};
+  cachedData.forEach(r => { if (!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r); });
+
+  list.innerHTML = '';
+  Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(date => {
+    const day = document.createElement('div');
+    day.className = 'history-day';
+    const label = new Date(date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+    day.innerHTML = `<div class="history-day-header">${label}</div>`;
+    byDate[date].forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'history-row';
+      row.innerHTML = `<div class="h-set">SET ${r.set_num}</div><div class="h-exercise">${r.exercise}</div><div class="h-detail">${r.reps}r × ${r.weight}kg</div><div class="h-pr">${r.is_pr?'🏆':''}</div>`;
+      day.appendChild(row);
+    });
+    list.appendChild(day);
+  });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['log','prs','history'][i]===name));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if (name==='prs') renderPRs();
+  if (name==='history') renderHistory();
+}
+
+init();
+</script>
+</body>
+</html>
